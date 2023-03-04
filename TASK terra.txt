@@ -1,0 +1,107 @@
+CREATE EC2 INSTANCE WITHOUT AMI ID {USE FILTERS} ALSO CREATE KEY ,SECURITY GROUP ,AND PASTE USERDATA ND HOST NGINX SERVICE
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "4.57.0"
+    }
+  }
+}
+
+provider "aws" {
+  # Configuration options
+  region     = "us-east-2"
+  access_key = "AKIAWKC56ZGKQ7OQ2SBK"
+  secret_key = "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"
+
+}
+resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCrATKLQIwkespV1nReH8yWXBKLA27jPv60yQWg9vh6yH+b+/ZNzzMf0bk8O+cbmKn3Dz3nZ+vd04xysKM1q+dw9GoKxodUFf0lHDLvy/Ua9AaTG17wkELgpym5qb06pL9VZZhXOLJXb4GfsVPajNqXH+0iVujIyl5+MpNUiTiPuc4y69c38ax424DcVVdSddNL7O67g94sN8kD9X97rOMfJe8V4mbhYcSRIZseFj9lEKKcrm3/my0YCVKOSMyqcvax6IrZTsqchxKg0QRU+KTor/8krJuyTKrhNDbTy6Ct8dzQyxQohypGCP1/K2NQofyQUZWqBlGhMzkSxpz8iq2lcafqAa37V5WS128vi+XiTU9+lm/HeInBHQ0UTgxQMF5cb2Aq9nwgIBqTE3k4swmoJlbjx0biDa1ppHaUQ+fSnyQjZ/jRTrurWSZt8y/kX8hcPoGs9/W/4zGHPnpCFpsY4wy1btxejFgtR/4XM0rcCN2RLYpDz45pW+kDaNc3xyE= root@LAPTOP-0GELM2T2"
+}
+
+resource "aws_security_group" "ssh" {
+  name_prefix = "ssh"
+  ingress {
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "http" {
+  name_prefix = "http"
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "https" {
+  name_prefix = "https"
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["amazon"]
+}
+resource "aws_instance" "example" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t2.micro"
+  key_name      = "deployer-key"
+  vpc_security_group_ids = [
+    aws_security_group.ssh.id,
+    aws_security_group.http.id,
+    aws_security_group.https.id,
+  ]
+  
+ user_data = <<EOF
+#!/bin/bash
+sudo yum update -y
+amazon-linux-extras install nginx1
+sudo systemctl start nginx
+sudo systemctl enable nginx >
+EOF
+
+  tags = {
+    Name = "ExampleInstance"
+  }
+}
